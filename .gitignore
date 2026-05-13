@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+output/
+artifacts/
+runtime/
+config/_web_*.yaml
+*.log
+.DS_Store

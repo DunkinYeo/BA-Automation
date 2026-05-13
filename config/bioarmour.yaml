@@ -1,0 +1,24 @@
+platform: android
+
+run:
+  name: bioarmour_regression
+
+android:
+  appium_server_url: http://127.0.0.1:4723
+  device_name: Android
+  udid: ""                        # ADB serial (USB) or IP:PORT (WiFi ADB)
+  app_package: com.wellysis.bioarmour
+  app_activity: com.wellysis.bioarmour.MainActivity
+  test_device_number: ""          # 기기 시리얼 번호 (6자리) — 잘못된 번호로 에러 케이스 테스트 가능
+  no_reset: true
+  new_command_timeout: 3600
+
+slack:
+  enabled: false
+  webhook_url: ""
+  mention: ""
+
+hub:
+  enabled: false
+  url: ""
+  tester_name: ""
