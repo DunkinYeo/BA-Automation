@@ -20,9 +20,20 @@ from src.regression.helpers import SETTING_ICON_CENTER
 
 log = logging.getLogger(__name__)
 
-_START_BTN   = "검사 시작"
-_STOP_BTN    = "검사 종료"
+_START_BTN    = "검사 시작"
+_STOP_BTN     = "검사 종료"
 _STOP_CB_DESC = ["검사를 종료하겠습니다.", "I confirm termination", "Confirm termination"]
+_LOADING_TEXT = ["잠시만 기다려주세요", "Please wait", "Loading"]
+
+
+def _wait_loading_clear(drv, timeout: int = 30):
+    """로딩 오버레이('잠시만 기다려주세요...') 사라질 때까지 대기."""
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < timeout:
+        if not drv.is_visible_text(_LOADING_TEXT, timeout=1):
+            return
+        time.sleep(1)
+    log.warning("_wait_loading_clear: %ds 후에도 로딩 오버레이 미사라짐", timeout)
 
 
 def _poll(drv, text, timeout: int = 10) -> bool:
@@ -117,11 +128,15 @@ def test_exam_005_stop_exam_checkbox(drv, runner):
 
 def test_exam_006_stop_and_go_summary(drv, runner):
     """TC-EXAM-006 | 검사 종료 팝업 — 체크박스 체크 + '검사 종료' → 요약 화면 이동"""
-    if not drv.is_visible_text(_STOP_BTN, timeout=3):
+    # BT 재연결 후 로딩 오버레이 대기 (connectivity 테스트 이후 발생 가능)
+    _wait_loading_clear(drv, timeout=30)
+    if not drv.is_visible_text(_STOP_BTN, timeout=5):
         log.info("TC-EXAM-006: 검사 미시작 상태 — 스킵")
         return
     drv.tap_text(_STOP_BTN, timeout=5, contains=False)
     time.sleep(1)
+    # 로딩 중 팝업이 닫힐 수 있으므로 재확인
+    _wait_loading_clear(drv, timeout=10)
     # 체크박스 탭 — content-desc="검사를 종료하겠습니다." (React Native 커스텀)
     tapped = False
     for desc in _STOP_CB_DESC:
@@ -142,7 +157,7 @@ def test_exam_006_stop_and_go_summary(drv, runner):
     except Exception:
         drv.tap_text("확인", timeout=5, contains=False)
     time.sleep(2)
-    on_summary = drv.is_visible_text(["업로드", "건너뛰기", "완료", "요약"], timeout=10)
+    on_summary = drv.is_visible_text(["업로드", "건너뛰기", "완료", "진행률"], timeout=20)
     runner.assert_true(on_summary, "검사 종료 후 요약 화면으로 이동하지 않음")
     if on_summary:
         log.info("TC-EXAM-006: 요약 화면 이동 확인")
