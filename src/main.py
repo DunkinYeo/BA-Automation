@@ -94,7 +94,10 @@ def main():
 
         suites_phase1 = [("login", login.TESTS), ("settings", settings.TESTS)]
         suites_phase2 = [("exam_info", exam_info.TESTS)]
-        suites_phase3 = [("exam", exam.TESTS), ("connectivity", connectivity.TESTS)]
+        # Phase 3: 검사 화면 활성 상태에서 실행 (connectivity 포함, 종료 전)
+        suites_phase3a = [("exam", exam.TESTS_PRE_STOP), ("connectivity", connectivity.TESTS)]
+        # Phase 3b: 검사 종료 → 요약 화면 진입
+        suites_phase3b = [("exam_stop", exam.TESTS_STOP)]
         suites_phase4 = [("summary", summary.TESTS)]
 
         def _run_suite(name, tests):
@@ -138,13 +141,18 @@ def main():
             p, t = _run_suite(name, tests)
             total_passed += p; total_all += t
 
-        # Phase 3 — 검사 화면 (go_to_exam_screen으로 이동)
+        # Phase 3a — 검사 화면 (검사 시작 후 연결 상태 테스트, 종료 전)
         go_to_exam_screen(driver)
-        for name, tests in suites_phase3:
+        for name, tests in suites_phase3a:
             p, t = _run_suite(name, tests)
             total_passed += p; total_all += t
 
-        # Phase 4 — 요약 화면 (exam 스위트가 검사 종료까지 수행함)
+        # Phase 3b — 검사 종료 → 요약 화면 진입
+        for name, tests in suites_phase3b:
+            p, t = _run_suite(name, tests)
+            total_passed += p; total_all += t
+
+        # Phase 4 — 요약 화면 (검사 종료 직후 실행)
         for name, tests in suites_phase4:
             p, t = _run_suite(name, tests)
             total_passed += p; total_all += t

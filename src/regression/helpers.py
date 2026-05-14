@@ -90,21 +90,35 @@ def reset_to_login(drv, hard: bool = True):
 
 
 def _force_end_exam_to_login(drv):
-    """활성 검사 세션 강제 종료 후 로그인 화면 복귀."""
+    """활성 검사/요약 세션에서 로그인 화면으로 강제 복귀."""
     from selenium.webdriver.common.by import By
     _STOP_BTN_TEXT = "검사 종료"
     _STOP_CB_DESCS = ["검사를 종료하겠습니다.", "I confirm termination"]
+    _SUMMARY_TEXTS = ["진행률", "데이터 업로드", "시작 시간", "종료 시간"]
     _SKIP_BTNS     = ["건너뛰기", "Skip"]
     _DONE_BTNS     = ["완료", "Done", "Complete"]
 
-    # 검사 종료 버튼 탭
+    # 1) 요약 화면인 경우 — 업로드 버튼/완료 버튼 탭으로 바로 로그인 복귀
+    if drv.is_visible_text(_SUMMARY_TEXTS, timeout=3):
+        log.info("[setup] 요약 화면 감지 — 완료/건너뛰기 탭으로 로그인 복귀")
+        for btn in [_DONE_BTNS, _SKIP_BTNS]:
+            if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+                return
+            try:
+                drv.tap_text(btn, timeout=5, contains=False)
+                time.sleep(2)
+            except Exception:
+                pass
+        if drv.is_visible_text(LOGIN_TITLE, timeout=3):
+            return
+
+    # 2) 검사 화면인 경우 — 검사 종료 팝업 → 체크박스 → 확인
     try:
         drv.tap_text(_STOP_BTN_TEXT, timeout=5, contains=False)
         time.sleep(1)
     except Exception:
         pass
 
-    # 검사 종료 팝업 — 체크박스 탭
     for desc in _STOP_CB_DESCS:
         try:
             els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
@@ -115,24 +129,23 @@ def _force_end_exam_to_login(drv):
         except Exception:
             pass
 
-    # 검사 종료 팝업 확인 버튼 탭
     try:
         drv.tap_text(_STOP_BTN_TEXT, timeout=5, contains=False)
         time.sleep(2)
     except Exception:
         pass
 
-    # 요약 화면에서 건너뛰기 또는 완료 → 로그인 복귀
-    for btn in [_SKIP_BTNS, _DONE_BTNS]:
+    # 3) 요약 화면에서 완료/건너뛰기
+    for btn in [_DONE_BTNS, _SKIP_BTNS]:
         if drv.is_visible_text(LOGIN_TITLE, timeout=2):
             return
         try:
             drv.tap_text(btn, timeout=5, contains=False)
-            time.sleep(1)
+            time.sleep(2)
         except Exception:
             pass
 
-    # Back 키로 강제 복귀 (최대 5회)
+    # 4) Back 키 강제 복귀
     for _ in range(5):
         if drv.is_visible_text(LOGIN_TITLE, timeout=2):
             return

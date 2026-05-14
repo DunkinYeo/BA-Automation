@@ -245,16 +245,23 @@ def test_exam_set_005_exam_info(drv, runner):
     log.info("TC-EXAM-SET-005: 검사 정보 표시 확인")
 
 
-TESTS = [
+# 검사 종료 전 실행 (검사 화면 활성 상태 필요)
+TESTS_PRE_STOP = [
     test_exam_001_screen_visible,
     test_exam_002_status_indicators,
     test_exam_003_start_exam,
     test_exam_004_stop_exam_popup,
     test_exam_005_stop_exam_checkbox,
-    test_exam_006_stop_and_go_summary,
     test_exam_set_001_settings_entry,
     test_exam_set_002_version_info,
     test_exam_set_003_file_screen_5tap,
     test_exam_set_004_device_info,
     test_exam_set_005_exam_info,
 ]
+
+# 검사 종료 (실행 후 요약 화면으로 이동)
+TESTS_STOP = [
+    test_exam_006_stop_and_go_summary,
+]
+
+TESTS = TESTS_PRE_STOP + TESTS_STOP

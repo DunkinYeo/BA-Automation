@@ -28,8 +28,11 @@ _SKIP_BTN      = "건너뛰기"
 _LOGIN_TEXT    = "연결하기"
 
 
+_SUMMARY_INDICATORS = ["진행률", "검사 정보", "시작 시간", "종료 시간"]
+
+
 def _on_summary(drv) -> bool:
-    return drv.is_visible_text([_COMPLETE_BTN, _UPLOAD_BTN, _SKIP_BTN], timeout=5)
+    return drv.is_visible_text(_SUMMARY_INDICATORS + [_COMPLETE_BTN, _UPLOAD_BTN, _SKIP_BTN], timeout=5)
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +82,9 @@ def test_summary_006_skip_popup(drv, runner):
         time.sleep(0.5)
 
 
+_SKIP_CB_DESCS = ["건너뛰겠습니다.", "I confirm skip", "Confirm skip"]
+
+
 def test_summary_007_skip_confirm(drv, runner):
     """TC-SUMMARY-007 | 건너뛰기 팝업 — 체크박스 체크 + '건너뛰기' → 로그인 화면 이동"""
     if not drv.is_visible_text(_SKIP_BTN, timeout=3):
@@ -86,12 +92,39 @@ def test_summary_007_skip_confirm(drv, runner):
         return
     drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
     time.sleep(1)
-    # 팝업에서 체크박스 체크
-    checkboxes = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
-    for cb in checkboxes:
-        if cb.get_attribute("checked") != "true":
-            cb.click()
-            time.sleep(0.3)
+    # 팝업 page source 로깅 (실제 체크박스 content-desc 확인용)
+    import re
+    try:
+        src = drv.drv.page_source
+        texts = [t for t in re.findall(r'(?:text|content-desc)="([^"]+)"', src) if t.strip()]
+        log.info("TC-SUMMARY-007 팝업 텍스트: %s", texts)
+    except Exception:
+        pass
+    try:
+        drv.screenshot("summary_007_skip_popup")
+    except Exception:
+        pass
+    # 체크박스 탭 — content-desc 기반 (React Native 커스텀), fallback android.widget.CheckBox
+    tapped = False
+    for desc in _SKIP_CB_DESCS:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+            if els:
+                els[0].click()
+                time.sleep(0.3)
+                tapped = True
+                break
+        except Exception:
+            pass
+    if not tapped:
+        try:
+            checkboxes = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
+            for cb in checkboxes:
+                if cb.get_attribute("checked") != "true":
+                    cb.click()
+                    time.sleep(0.3)
+        except Exception:
+            pass
     try:
         drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
     except Exception:
