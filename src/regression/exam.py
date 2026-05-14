@@ -16,11 +16,13 @@ import time
 import logging
 from selenium.webdriver.common.by import By
 
+from src.regression.helpers import SETTING_ICON_CENTER
+
 log = logging.getLogger(__name__)
 
 _START_BTN   = "검사 시작"
 _STOP_BTN    = "검사 종료"
-_SETTING_BTN = "설정"
+_STOP_CB_DESC = ["검사를 종료하겠습니다.", "I confirm termination", "Confirm termination"]
 
 
 def _poll(drv, text, timeout: int = 10) -> bool:
@@ -92,21 +94,24 @@ def test_exam_005_stop_exam_checkbox(drv, runner):
     if not drv.is_visible_text("검사 종료", timeout=3):
         runner.assert_true(False, "검사 종료 팝업이 표시되지 않음")
         return
-    # 체크박스 미체크 상태에서 확인 버튼 상태 확인
-    checkboxes = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
-    all_unchecked = all(cb.get_attribute("checked") != "true" for cb in checkboxes) if checkboxes else True
-    if all_unchecked and checkboxes:
-        try:
-            btn = drv.find("검사 종료", timeout=2)
-            enabled = btn.get_attribute("enabled") == "true"
-            runner.assert_false(enabled, "체크박스 미체크 상태에서 '검사 종료' 버튼이 활성화됨")
-        except Exception:
-            log.info("TC-EXAM-005: 버튼 상태 확인 불가 — 수동 확인 필요")
-    # 팝업 닫기
+    # 체크박스 미체크 상태에서 '검사 종료' 버튼 비활성화 확인
+    # (React Native clickable 속성 기준, 결과에 따라 APP 이슈로 분류)
     try:
-        drv.tap_text(["취소", "Cancel", "닫기"], timeout=3, contains=False)
+        els = drv.drv.find_elements(By.XPATH, '//*[@text="검사 종료"]')
+        if els:
+            clickable = els[0].get_attribute("clickable")
+            enabled = els[0].get_attribute("enabled")
+            is_active = (clickable == "true") if clickable is not None else (enabled == "true")
+            runner.assert_false(is_active, "체크박스 미체크 상태에서 '검사 종료' 버튼이 활성화됨")
+        else:
+            log.info("TC-EXAM-005: 버튼 상태 확인 불가 — 수동 확인 필요")
     except Exception:
+        log.info("TC-EXAM-005: 버튼 상태 확인 불가 — 수동 확인 필요")
+    # 팝업 닫기 (X 버튼 or Back)
+    try:
         drv.drv.press_keycode(4)
+    except Exception:
+        pass
     time.sleep(0.5)
 
 
@@ -117,11 +122,21 @@ def test_exam_006_stop_and_go_summary(drv, runner):
         return
     drv.tap_text(_STOP_BTN, timeout=5, contains=False)
     time.sleep(1)
-    checkboxes = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
-    for cb in checkboxes:
-        if cb.get_attribute("checked") != "true":
-            cb.click()
-            time.sleep(0.3)
+    # 체크박스 탭 — content-desc="검사를 종료하겠습니다." (React Native 커스텀)
+    tapped = False
+    for desc in _STOP_CB_DESC:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+            if els:
+                els[0].click()
+                time.sleep(0.4)
+                tapped = True
+                break
+        except Exception:
+            pass
+    if not tapped:
+        log.warning("TC-EXAM-006: 체크박스를 찾지 못함 — '검사 종료' 버튼 직접 탭 시도")
+    # 팝업 '검사 종료' 버튼 탭
     try:
         drv.tap_text("검사 종료", timeout=5, contains=False)
     except Exception:
@@ -142,10 +157,12 @@ def test_exam_set_001_settings_entry(drv, runner):
     if not drv.is_visible_text([_START_BTN, _STOP_BTN], timeout=3):
         log.info("TC-EXAM-SET-001: 검사 화면이 아님 — 스킵")
         return
-    drv.tap_text(_SETTING_BTN, timeout=5)
+    # 설정 아이콘은 텍스트 없는 아이콘 — 좌표 탭 (로그인 화면과 동일 위치)
+    cx, cy = SETTING_ICON_CENTER
+    drv.drv.tap([(cx, cy)])
     time.sleep(1)
-    on_settings = drv.is_visible_text(["버전 정보", "기기 정보", "검사 정보", "버전"], timeout=5)
-    runner.assert_true(on_settings, "설정 아이콘 클릭 후 설정 화면으로 이동하지 않음")
+    on_settings = drv.is_visible_text(["버전 정보", "기기 정보", "검사 정보"], timeout=5)
+    runner.assert_true(on_settings, "설정 아이콘 탭 후 설정 화면으로 이동하지 않음")
     if on_settings:
         log.info("TC-EXAM-SET-001: 설정 화면 진입 확인")
 
