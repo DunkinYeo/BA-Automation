@@ -120,15 +120,18 @@ def main():
             total_passed += p; total_all += t
 
         # Phase 2 — 검사 정보 화면
-        # enter_serial → 연결하기 → 검사 정보 화면 진입 후 TC 실행
+        # enter_serial → 연결하기 → 검사 정보 화면(BLE 연결 대기 최대 60s) → TC 실행
         reset_to_login(driver, hard=True)
         device_num = a_cfg.get("test_device_number", "")
         if device_num:
             try:
+                import time as _t
                 from src.regression.helpers import enter_serial, CONNECT_BTN
+                _INFO_SCREEN = ["검사 정보 확인", "Study Information Confirmation", "대상 ID", "이름"]
                 enter_serial(driver, device_num)
                 driver.tap_text(CONNECT_BTN, timeout=5, contains=False)
-                import time; time.sleep(5)
+                # BLE 연결 + 서버 응답 대기 (최대 60s)
+                driver.is_visible_text(_INFO_SCREEN, timeout=60)
             except Exception:
                 pass
         for name, tests in suites_phase2:

@@ -90,25 +90,21 @@ def test_info_002_subject_info_visible(drv, runner):
 
 def test_info_003_checkbox_unchecked_confirm_disabled(drv, runner):
     """TC-INFO-003 | 체크박스 미체크 → '확인' 버튼 비활성화"""
-    checkboxes = _get_checkboxes(drv)
-    if not checkboxes:
-        log.info("TC-INFO-003: 체크박스 없음 — UI 구조 확인 필요")
+    # INFO 화면 최초 진입 시 체크박스는 미체크 상태여야 함
+    # clickable/enabled 속성으로 판단 (React Native 앱 특성상 enabled=true일 수 있어 SKIP 허용)
+    enabled = _is_confirm_enabled(drv)
+    if enabled is None:
+        log.info("TC-INFO-003: '확인' 버튼 상태 감지 불가 — 스킵")
         return
-    # 모두 체크 해제
-    for cb in checkboxes:
-        if cb.get_attribute("checked") == "true":
-            cb.click()
-            time.sleep(0.3)
-    runner.assert_false(_is_confirm_enabled(drv), "체크박스 미체크 상태에서 '확인'이 활성화됨")
+    runner.assert_false(enabled, "체크박스 미체크 상태에서 '확인'이 활성화됨")
 
 
 def test_info_004_checkbox_confirm_flow(drv, runner):
     """TC-INFO-004 | 체크박스 체크 + '확인' 클릭 → 검사 화면 이동"""
-    checkboxes = _get_checkboxes(drv)
-    for cb in checkboxes:
-        if cb.get_attribute("checked") != "true":
-            cb.click()
-            time.sleep(0.3)
+    # 체크박스 탭 (content-desc="확인했습니다." 기반)
+    checked = _tap_checkbox(drv)
+    if not checked:
+        log.warning("TC-INFO-004: 체크박스를 찾지 못함 — '확인' 버튼 직접 탭 시도")
     runner.assert_true(_is_confirm_enabled(drv), "체크박스 체크 후 '확인' 버튼이 활성화되지 않음")
     drv.tap_text(_CONFIRM_BTN, timeout=5, contains=False)
     time.sleep(1)

@@ -125,19 +125,27 @@ def enter_serial(drv, serial: str):
 
 
 def is_connect_enabled(drv) -> bool:
-    """연결하기/Connect 버튼 활성화 여부."""
+    """연결하기/Connect 버튼 활성화 여부.
+    React Native 앱은 enabled 속성이 항상 true일 수 있으므로 clickable 우선 확인."""
     for text in CONNECT_BTN:
         try:
             els = drv.drv.find_elements(
                 "xpath", f'//*[@content-desc="{text}"]'
             )
             if els:
+                # clickable 먼저 확인 (React Native 버튼 비활성화 시 clickable=false)
+                clickable = els[0].get_attribute("clickable")
+                if clickable is not None:
+                    return clickable == "true"
                 return els[0].get_attribute("enabled") == "true"
             # text 속성으로도 확인
             els = drv.drv.find_elements(
                 "xpath", f'//*[@text="{text}"]/..'
             )
             if els:
+                clickable = els[0].get_attribute("clickable")
+                if clickable is not None:
+                    return clickable == "true"
                 return els[0].get_attribute("enabled") == "true"
         except Exception:
             pass
@@ -191,15 +199,31 @@ def _dismiss_error_popups(drv):
 
 
 def _check_and_confirm(drv):
+    # content-desc="확인했습니다." 기반 체크박스 탭 (React Native 커스텀 컴포넌트)
+    _CHECKBOX_DESC = ["확인했습니다.", "I confirm", "Confirmed"]
+    tapped = False
     try:
         from selenium.webdriver.common.by import By
-        checkboxes = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
-        for cb in checkboxes:
-            if cb.get_attribute("checked") != "true":
-                cb.click()
-                time.sleep(0.3)
+        for desc in _CHECKBOX_DESC:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+            if els:
+                els[0].click()
+                time.sleep(0.4)
+                tapped = True
+                break
     except Exception:
         pass
+    if not tapped:
+        # fallback: 표준 CheckBox
+        try:
+            from selenium.webdriver.common.by import By
+            cbs = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
+            for cb in cbs:
+                if cb.get_attribute("checked") != "true":
+                    cb.click()
+                    time.sleep(0.3)
+        except Exception:
+            pass
     try:
         drv.tap_text(OK_BTNS, timeout=5, contains=False)
     except Exception:
