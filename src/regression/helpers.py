@@ -75,6 +75,10 @@ def reset_to_login(drv, hard: bool = True):
             if act:
                 drv.drv.start_activity(pkg, act)
         time.sleep(2)
+        # 앱이 활성 검사 세션을 유지하는 경우 로그인 화면이 아닌 검사 화면으로 복귀할 수 있음
+        if not drv.is_visible_text(LOGIN_TITLE, timeout=3):
+            log.info("[setup] 검사 화면 감지 — 강제 종료 후 로그인 복귀 시도")
+            _force_end_exam_to_login(drv)
     else:
         log.info("[setup] Back key → 로그인 화면")
         for _ in range(6):
@@ -83,6 +87,58 @@ def reset_to_login(drv, hard: bool = True):
             drv.drv.press_keycode(4)
             time.sleep(0.8)
         time.sleep(0.5)
+
+
+def _force_end_exam_to_login(drv):
+    """활성 검사 세션 강제 종료 후 로그인 화면 복귀."""
+    from selenium.webdriver.common.by import By
+    _STOP_BTN_TEXT = "검사 종료"
+    _STOP_CB_DESCS = ["검사를 종료하겠습니다.", "I confirm termination"]
+    _SKIP_BTNS     = ["건너뛰기", "Skip"]
+    _DONE_BTNS     = ["완료", "Done", "Complete"]
+
+    # 검사 종료 버튼 탭
+    try:
+        drv.tap_text(_STOP_BTN_TEXT, timeout=5, contains=False)
+        time.sleep(1)
+    except Exception:
+        pass
+
+    # 검사 종료 팝업 — 체크박스 탭
+    for desc in _STOP_CB_DESCS:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+            if els:
+                els[0].click()
+                time.sleep(0.4)
+                break
+        except Exception:
+            pass
+
+    # 검사 종료 팝업 확인 버튼 탭
+    try:
+        drv.tap_text(_STOP_BTN_TEXT, timeout=5, contains=False)
+        time.sleep(2)
+    except Exception:
+        pass
+
+    # 요약 화면에서 건너뛰기 또는 완료 → 로그인 복귀
+    for btn in [_SKIP_BTNS, _DONE_BTNS]:
+        if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+            return
+        try:
+            drv.tap_text(btn, timeout=5, contains=False)
+            time.sleep(1)
+        except Exception:
+            pass
+
+    # Back 키로 강제 복귀 (최대 5회)
+    for _ in range(5):
+        if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+            return
+        drv.drv.press_keycode(4)
+        time.sleep(0.8)
+    log.warning("[setup] 로그인 화면 복귀 실패 — 수동 확인 필요")
 
 
 def tap_setting_icon(drv):
