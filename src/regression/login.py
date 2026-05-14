@@ -46,6 +46,26 @@ def _is_wifi_adb(drv) -> bool:
     return ":" in drv.cfg.get("udid", "")
 
 
+def _back_to_login(drv):
+    """에러 TC 후 앱이 로그인 화면이 아닌 경우 Back 키로 복귀."""
+    if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+        return
+    # 서버 에러 팝업(302, 902 등) 먼저 닫기
+    for btn in OK_BTNS:
+        try:
+            drv.tap_text(btn, timeout=1, contains=False)
+            time.sleep(0.5)
+        except Exception:
+            pass
+    if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+        return
+    for _ in range(4):
+        drv.drv.press_keycode(4)
+        time.sleep(0.8)
+        if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+            return
+
+
 def _clear_serial(drv):
     """시리얼 박스 지우기 — 입력 영역 탭 후 DEL 6회, 키보드 닫기."""
     udid = drv.cfg.get("udid", "")
@@ -194,6 +214,7 @@ def test_login_err_10_bt_off(drv, runner):
     finally:
         _bt_on(drv)
         time.sleep(3)
+        _back_to_login(drv)
 
 
 def test_login_err_11_gps_off(drv, runner):
@@ -223,6 +244,7 @@ def test_login_err_11_gps_off(drv, runner):
     finally:
         _gps_on(drv)
         time.sleep(1)
+        _back_to_login(drv)
 
 
 def test_login_err_01_network_off(drv, runner):
@@ -255,6 +277,7 @@ def test_login_err_01_network_off(drv, runner):
     finally:
         _wifi_on(drv)
         time.sleep(4)
+        _back_to_login(drv)
 
 
 TESTS = [

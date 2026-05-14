@@ -24,6 +24,7 @@ class AndroidDriver:
         self.reporter = reporter
         self._last_adb_reconnect_at: float = 0.0
         self.drv = self._connect()
+        self._ensure_app_foreground()
 
     # ------------------------------------------------------------------
     # Connection
@@ -49,6 +50,19 @@ class AndroidDriver:
         server = self.cfg.get("appium_server_url", "http://127.0.0.1:4723")
         self.reporter.log_event("appium_connect", {"server": server})
         return webdriver.Remote(server, options=self._build_options())
+
+    def _ensure_app_foreground(self):
+        """세션 연결 후 타겟 앱이 포그라운드인지 확인하고 아니면 강제로 올린다."""
+        pkg = self.cfg.get("app_package")
+        if not pkg:
+            return
+        try:
+            if self.drv.current_package != pkg:
+                self.reporter.log_event("app_not_foreground", {"current": self.drv.current_package, "expected": pkg})
+                self.bring_to_foreground()
+                time.sleep(2)
+        except Exception:
+            pass
 
     def _ensure_adb_connected(self) -> None:
         udid = self.cfg.get("udid", "")

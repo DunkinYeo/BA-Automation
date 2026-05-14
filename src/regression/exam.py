@@ -102,8 +102,8 @@ def test_exam_003_start_exam(drv, runner):
         log.info("TC-EXAM-003: 이미 검사 중 — 스킵")
         return
     drv.tap_text(_START_BTN, timeout=5, contains=False)
-    time.sleep(1)
-    ok = drv.is_visible_text(_STOP_BTN, timeout=10)
+    _wait_loading_clear(drv, timeout=30)
+    ok = drv.is_visible_text(_STOP_BTN, timeout=20)
     runner.assert_true(ok, "'검사 시작' 클릭 후 '검사 종료' 버튼이 표시되지 않음")
     if ok:
         log.info("TC-EXAM-003: '검사 종료' 버튼 표시 확인 — 검사 시작됨")

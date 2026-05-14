@@ -2,10 +2,29 @@
 BioArmour 공통 헬퍼
 한국어 / 영어 OS 언어 설정에 따라 앱 언어가 결정됨 — 모든 셀렉터를 리스트로 관리
 """
+import subprocess
 import time
 import logging
 
 log = logging.getLogger(__name__)
+
+
+def _grant_location_permissions(drv):
+    """OS 위치 권한 팝업이 뜨지 않도록 ADB로 미리 부여한다."""
+    pkg = drv.cfg.get("app_package", "")
+    if not pkg:
+        return
+    udid = drv.cfg.get("udid", "")
+    base = ["adb"] + (["-s", udid] if udid else [])
+    for perm in [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+    ]:
+        try:
+            subprocess.run(base + ["shell", "pm", "grant", pkg, perm],
+                           capture_output=True, timeout=10)
+        except Exception:
+            pass
 
 # ── 한/영 셀렉터 상수 ────────────────────────────────────────────────────────
 CONNECT_BTN    = ["연결하기", "Connect"]
@@ -63,6 +82,7 @@ def reset_to_login(drv, hard: bool = True):
     pkg = drv.cfg.get("app_package")
     if hard:
         log.info("[setup] App restart → 로그인 화면")
+        _grant_location_permissions(drv)
         try:
             drv.drv.terminate_app(pkg)
         except Exception:
@@ -97,6 +117,16 @@ def _force_end_exam_to_login(drv):
     _SUMMARY_TEXTS = ["진행률", "데이터 업로드", "시작 시간", "종료 시간"]
     _SKIP_BTNS     = ["건너뛰기", "Skip"]
     _DONE_BTNS     = ["완료", "Done", "Complete"]
+    _EXAM_CONFIRM  = ["검사 정보 확인", "Study Information Confirmation"]
+
+    # 0) 검사 정보 확인 화면인 경우 — Back 키로 로그인 복귀
+    if drv.is_visible_text(_EXAM_CONFIRM, timeout=3):
+        log.info("[setup] 검사 정보 확인 화면 감지 — Back 키로 로그인 복귀")
+        for _ in range(3):
+            drv.drv.press_keycode(4)
+            time.sleep(1)
+            if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+                return
 
     # 1) 요약 화면인 경우 — 업로드 버튼/완료 버튼 탭으로 바로 로그인 복귀
     if drv.is_visible_text(_SUMMARY_TEXTS, timeout=3):
@@ -256,7 +286,29 @@ def go_to_exam_screen(drv, wait_ble: int = 60):
     raise Exception(f"검사 화면 진입 실패 ({wait_ble}s 초과)")
 
 
+_OS_PERMISSION_BTNS = [
+    "앱 사용 중에만 허용", "While using the app", "Allow only while using the app",
+    "이번만 허용", "Only this time",
+    "허용", "Allow", "동의",
+]
+
+
+def _dismiss_os_permission_dialog(drv) -> bool:
+    """Android OS 위치/권한 다이얼로그를 탭해서 닫는다. 닫으면 True."""
+    for btn in _OS_PERMISSION_BTNS:
+        if drv.is_visible_text(btn, timeout=1):
+            try:
+                drv.tap_text(btn, timeout=2, contains=False)
+                time.sleep(0.5)
+                return True
+            except Exception:
+                pass
+    return False
+
+
 def _dismiss_error_popups(drv):
+    if _dismiss_os_permission_dialog(drv):
+        return
     for btn in OK_BTNS:
         if drv.is_visible_text(btn, timeout=1):
             try:
