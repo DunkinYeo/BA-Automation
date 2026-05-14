@@ -120,18 +120,15 @@ def main():
             total_passed += p; total_all += t
 
         # Phase 2 — 검사 정보 화면
-        # 연결하기까지만 진행하고 검사 정보 화면에서 TC 실행
+        # enter_serial → 연결하기 → 검사 정보 화면 진입 후 TC 실행
         reset_to_login(driver, hard=True)
         device_num = a_cfg.get("test_device_number", "")
         if device_num:
             try:
-                from selenium.webdriver.common.by import By
-                el = driver.drv.find_element(By.CLASS_NAME, "android.widget.EditText")
-                el.clear()
-                el.send_keys(device_num)
-                import time; time.sleep(0.5)
-                driver.tap_text("연결하기", timeout=5, contains=False)
-                import time; time.sleep(3)
+                from src.regression.helpers import enter_serial, CONNECT_BTN
+                enter_serial(driver, device_num)
+                driver.tap_text(CONNECT_BTN, timeout=5, contains=False)
+                import time; time.sleep(5)
             except Exception:
                 pass
         for name, tests in suites_phase2:

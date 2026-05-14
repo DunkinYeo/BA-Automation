@@ -93,11 +93,10 @@ def tap_setting_icon(drv):
 
 
 def enter_serial(drv, serial: str):
-    """시리얼 번호 입력 (커스텀 6자리 박스 입력).
+    """시리얼 번호 입력 후 키보드 닫기."""
+    import subprocess
+    udid = drv.cfg.get("udid", "")
 
-    React Native 커스텀 컴포넌트라 EditText 없음.
-    입력 영역 탭 후 키보드로 입력.
-    """
     # 입력 영역 탭 (content-desc="#, #, #, #, #, #")
     try:
         els = drv.drv.find_elements(
@@ -105,21 +104,24 @@ def enter_serial(drv, serial: str):
         )
         if els:
             els[0].click()
-            time.sleep(0.5)
         else:
-            # fallback: 화면 중앙 하단 입력 영역 좌표 탭
-            drv.drv.tap([(540, 1383)])
-            time.sleep(0.5)
+            drv.drv.tap([(540, 1340)])
     except Exception:
-        drv.drv.tap([(540, 1383)])
-        time.sleep(0.5)
+        drv.drv.tap([(540, 1340)])
+    time.sleep(0.5)
 
-    # 키보드로 숫자 입력
-    import subprocess
-    udid = drv.cfg.get("udid", "")
+    # 숫자 입력
     cmd = ["adb"] + (["-s", udid] if udid else []) + ["shell", "input", "text", serial]
     subprocess.run(cmd, capture_output=True, timeout=5)
-    time.sleep(0.3)
+    time.sleep(0.4)
+
+    # 키보드 닫기 — 버튼이 키보드에 가려지지 않도록
+    try:
+        drv.drv.hide_keyboard()
+    except Exception:
+        cmd_back = ["adb"] + (["-s", udid] if udid else []) + ["shell", "input", "keyevent", "111"]
+        subprocess.run(cmd_back, capture_output=True, timeout=5)
+    time.sleep(0.5)
 
 
 def is_connect_enabled(drv) -> bool:

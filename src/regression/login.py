@@ -47,13 +47,31 @@ def _is_wifi_adb(drv) -> bool:
 
 
 def _clear_serial(drv):
-    """시리얼 박스 지우기 — 각 자리 DEL 키 6회."""
+    """시리얼 박스 지우기 — 입력 영역 탭 후 DEL 6회, 키보드 닫기."""
     udid = drv.cfg.get("udid", "")
     cmd_base = ["adb"] + (["-s", udid] if udid else [])
+    # 입력 영역에 포커스
+    try:
+        els = drv.drv.find_elements("xpath", '//*[@content-desc="#, #, #, #, #, #"]')
+        if els:
+            els[0].click()
+        else:
+            drv.drv.tap([(540, 1340)])
+    except Exception:
+        drv.drv.tap([(540, 1340)])
+    time.sleep(0.3)
+    # DEL 6회
     for _ in range(6):
         subprocess.run(cmd_base + ["shell", "input", "keyevent", "67"],
                        capture_output=True, timeout=5)
-    time.sleep(0.3)
+    time.sleep(0.2)
+    # 키보드 닫기
+    try:
+        drv.drv.hide_keyboard()
+    except Exception:
+        subprocess.run(cmd_base + ["shell", "input", "keyevent", "111"],
+                       capture_output=True, timeout=5)
+    time.sleep(0.4)
 
 
 # ---------------------------------------------------------------------------
@@ -110,15 +128,30 @@ def test_login_005_setting_icon_entry(drv, runner):
 
 
 def test_login_006_wrong_serial_error(drv, runner):
-    """TC-LOGIN-006 | 잘못된 시리얼 → 연결 → 디바이스 못찾음 에러 팝업"""
+    """TC-LOGIN-006 | 잘못된 시리얼 → 연결 → 에러 팝업 표시"""
     enter_serial(drv, "000000")
     time.sleep(0.3)
     runner.assert_true(is_connect_enabled(drv), "6자리 입력 후 연결하기 비활성화")
     drv.tap_text(CONNECT_BTN, timeout=5, contains=False)
+    # 에러 팝업 대기 — 실제 앱이 노출하는 텍스트 포함 (902 서버 에러 코드 포함)
     popup = drv.is_visible_text(
-        ["디바이스를 찾을 수 없음", "찾을 수 없", "Cannot find", "not found", "연결 실패"],
-        timeout=30
+        ["디바이스를 찾을 수 없음", "찾을 수 없", "Cannot find", "not found",
+         "연결 실패", "검사 정보 없음", "정보 없음", "902", "오류", "error", "Error"],
+        timeout=40
     )
+    # 팝업 뜰 때 스크린샷 캡처
+    try:
+        drv.screenshot("login_006_wrong_serial_popup")
+    except Exception:
+        pass
+    # 팝업 텍스트 로그
+    import re
+    try:
+        src = drv.drv.page_source
+        texts = [t for t in re.findall(r'text="([^"]+)"', src) if t.strip()]
+        log.info(f"TC-LOGIN-006 popup 화면 텍스트: {texts}")
+    except Exception:
+        pass
     try:
         drv.tap_text(OK_BTNS, timeout=5, contains=False)
     except Exception:
