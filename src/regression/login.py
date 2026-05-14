@@ -134,9 +134,11 @@ def test_login_006_wrong_serial_error(drv, runner):
     runner.assert_true(is_connect_enabled(drv), "6자리 입력 후 연결하기 비활성화")
     drv.tap_text(CONNECT_BTN, timeout=5, contains=False)
     # 에러 팝업 대기 — 실제 앱이 노출하는 텍스트 포함 (902 서버 에러 코드 포함)
+    # 실제 확인된 팝업 텍스트: "알 수 없는 오류 (902)" / "알 수 없는 오류가 발생했습니다."
     popup = drv.is_visible_text(
-        ["디바이스를 찾을 수 없음", "찾을 수 없", "Cannot find", "not found",
-         "연결 실패", "검사 정보 없음", "정보 없음", "902", "오류", "error", "Error"],
+        ["알 수 없는 오류", "알 수 없는", "902",
+         "디바이스를 찾을 수 없음", "검사 정보 없음", "연결 실패",
+         "Cannot find", "not found", "오류", "Error"],
         timeout=40
     )
     # 팝업 뜰 때 스크린샷 캡처
