@@ -12,23 +12,58 @@ from selenium.webdriver.common.by import By
 
 log = logging.getLogger(__name__)
 
-_CONFIRM_BTN  = "확인"
-_EXAM_TEXT    = "검사 시작"
+_CONFIRM_BTN    = ["확인", "Confirm", "OK"]
+_EXAM_TEXT      = ["검사 시작", "Start Study"]
+_INFO_SCREEN    = ["검사 정보 확인", "Study Information Confirmation", "대상 ID", "이름"]
+_CHECKBOX_DESC  = ["확인했습니다.", "I confirm", "Confirmed"]
 
 
-def _get_checkboxes(drv):
+def _wait_for_info_screen(drv, timeout: int = 60) -> bool:
+    """INFO 화면 진입 대기 (BLE 연결 시간 포함)."""
+    return drv.is_visible_text(_INFO_SCREEN, timeout=timeout)
+
+
+def _tap_checkbox(drv) -> bool:
+    """INFO 화면 체크박스 탭 — content-desc 기반 커스텀 컴포넌트."""
+    # 1) content-desc 로 찾기
+    for desc in _CHECKBOX_DESC:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+            if els:
+                els[0].click()
+                time.sleep(0.4)
+                return True
+        except Exception:
+            pass
+    # 2) 표준 CheckBox fallback
     try:
-        return drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
+        cbs = drv.drv.find_elements(By.CLASS_NAME, "android.widget.CheckBox")
+        if cbs:
+            for cb in cbs:
+                if cb.get_attribute("checked") != "true":
+                    cb.click()
+                    time.sleep(0.3)
+            return True
     except Exception:
-        return []
+        pass
+    return False
 
 
 def _is_confirm_enabled(drv) -> bool:
-    try:
-        btn = drv.find(_CONFIRM_BTN, timeout=3)
-        return btn.get_attribute("enabled") == "true"
-    except Exception:
-        return False
+    """확인 버튼 활성화 여부 — clickable 속성 기준."""
+    for text in _CONFIRM_BTN:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{text}"]')
+            if els:
+                val = els[0].get_attribute("enabled")
+                return val == "true"
+            els2 = drv.drv.find_elements(By.XPATH, f'//*[@text="{text}"]')
+            if els2:
+                val = els2[0].get_attribute("enabled")
+                return val == "true"
+        except Exception:
+            pass
+    return False
 
 
 # ---------------------------------------------------------------------------
