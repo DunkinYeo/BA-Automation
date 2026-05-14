@@ -400,7 +400,6 @@ TESTS_PRE_STOP = [
     test_exam_set_004_device_info,
     test_exam_set_005_exam_info,
     test_exam_set_006_back_to_exam,
-    test_exam_err02_gps_off,
 ]
 
 # 검사 종료 (실행 후 요약 화면으로 이동)

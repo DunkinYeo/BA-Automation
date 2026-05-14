@@ -131,10 +131,28 @@ def main():
                 import time as _t
                 from src.regression.helpers import enter_serial, CONNECT_BTN
                 _INFO_SCREEN = ["검사 정보 확인", "Study Information Confirmation", "대상 ID", "이름"]
-                enter_serial(driver, device_num)
-                driver.tap_text(CONNECT_BTN, timeout=5, contains=False)
-                # BLE 연결 + 서버 응답 대기 (최대 60s)
-                driver.is_visible_text(_INFO_SCREEN, timeout=60)
+                _ERR_POPUP   = ["알 수 없는 오류", "오류", "Error"]
+                _OK_BTNS     = ["확인", "Ok", "OK"]
+                for _ in range(3):
+                    enter_serial(driver, device_num)
+                    driver.tap_text(CONNECT_BTN, timeout=5, contains=False)
+                    # BLE 연결 + 서버 응답 대기 (최대 60s), 에러 팝업 감지 시 dismiss 후 재시도
+                    deadline = _t.monotonic() + 60
+                    reached = False
+                    while _t.monotonic() < deadline:
+                        if driver.is_visible_text(_INFO_SCREEN, timeout=1):
+                            reached = True
+                            break
+                        if driver.is_visible_text(_ERR_POPUP, timeout=1):
+                            try:
+                                driver.tap_text(_OK_BTNS, timeout=3, contains=False)
+                            except Exception:
+                                pass
+                            _t.sleep(5)  # 서버 세션 정리 대기
+                            break
+                        _t.sleep(0.5)
+                    if reached:
+                        break
             except Exception:
                 pass
         for name, tests in suites_phase2:

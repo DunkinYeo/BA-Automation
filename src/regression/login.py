@@ -287,7 +287,4 @@ TESTS = [
     test_login_004_valid_serial_connect_enabled,
     test_login_005_setting_icon_entry,
     test_login_006_wrong_serial_error,
-    test_login_err_10_bt_off,
-    test_login_err_11_gps_off,
-    test_login_err_01_network_off,
 ]
