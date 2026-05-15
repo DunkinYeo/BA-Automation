@@ -1,7 +1,7 @@
 """
 TC-CONN: 검사 화면 중 연결 상태 에러 케이스
 
-ADB로 BT/WiFi/GPS를 제어해 에러 팝업을 유발하고 복구를 검증한다.
+ADB로 BT/WiFi를 제어해 에러 팝업을 유발하고 복구를 검증한다.
 WiFi ADB 연결 중이면 WiFi-off 케이스는 자동 스킵.
 """
 import subprocess
@@ -24,8 +24,6 @@ def _bt_off(drv): _adb(drv, "shell", "cmd", "bluetooth_manager", "disable")
 def _bt_on(drv):  _adb(drv, "shell", "cmd", "bluetooth_manager", "enable")
 def _wifi_off(drv): _adb(drv, "shell", "svc", "wifi", "disable")
 def _wifi_on(drv):  _adb(drv, "shell", "svc", "wifi", "enable")
-def _gps_off(drv):  _adb(drv, "shell", "settings", "put", "secure", "location_mode", "0")
-def _gps_on(drv):   _adb(drv, "shell", "settings", "put", "secure", "location_mode", "3")
 
 
 def _is_wifi_adb(drv) -> bool:

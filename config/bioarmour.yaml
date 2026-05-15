@@ -14,8 +14,8 @@ android:
   new_command_timeout: 3600
 
 slack:
-  enabled: false
-  webhook_url: ""
+  enabled: true
+  webhook_url: ""   # SLACK_WEBHOOK_URL env var 우선 적용
   mention: ""
 
 hub:

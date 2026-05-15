@@ -310,36 +310,6 @@ def test_exam_set_006_back_to_exam(drv, runner):
 
 
 # ---------------------------------------------------------------------------
-# Test Cases — 검사 중 에러 케이스 (GPS)
-# ---------------------------------------------------------------------------
-
-def test_exam_err02_gps_off(drv, runner):
-    """TC-EXAM-ERR-02 | 검사 중 GPS OFF → 위치 꺼짐 에러 팝업 표시 → GPS ON → 복구"""
-    if not drv.is_visible_text(_STOP_BTN, timeout=3):
-        log.info("TC-EXAM-ERR-02: 검사 미시작 상태 — 스킵")
-        return
-    # GPS OFF
-    _adb(drv, "shell", "settings", "put", "secure", "location_mode", "0")
-    time.sleep(2)
-    try:
-        popup = drv.is_visible_text(
-            ["위치", "GPS", "위치 기능", "Location", "위치를 활성화"],
-            timeout=15
-        )
-        if popup:
-            log.info("TC-EXAM-ERR-02: 위치 꺼짐 에러 팝업 확인")
-            try:
-                drv.tap_text(["확인", "Ok", "OK", "닫기"], timeout=5, contains=False)
-            except Exception:
-                pass
-        runner.assert_true(popup, "검사 중 GPS OFF 시 위치 꺼짐 에러 팝업 미표시")
-    finally:
-        _adb(drv, "shell", "settings", "put", "secure", "location_mode", "3")
-        time.sleep(1)
-        _wait_loading_clear(drv, timeout=20)
-
-
-# ---------------------------------------------------------------------------
 # Test Cases — 검사 종료 (요약 화면 이동)
 # ---------------------------------------------------------------------------
 

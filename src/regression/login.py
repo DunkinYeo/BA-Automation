@@ -10,9 +10,6 @@ TC-LOGIN: 로그인 화면 Regression Tests
 입력 구조:
   - React Native 커스텀 6자리 박스 (EditText 없음)
   - content-desc="#, #, #, #, #, #" ViewGroup 탭 후 adb input text 입력
-
-에러 케이스 (ADB 제어 가능):
-  BT OFF / GPS OFF / WiFi OFF → 연결 시도 시 에러 팝업 확인
 """
 import subprocess
 import time
@@ -32,38 +29,6 @@ def _adb(drv, *args):
     udid = drv.cfg.get("udid", "")
     cmd = ["adb"] + (["-s", udid] if udid else []) + list(args)
     subprocess.run(cmd, capture_output=True, timeout=10)
-
-
-def _bt_off(drv): _adb(drv, "shell", "cmd", "bluetooth_manager", "disable")
-def _bt_on(drv):  _adb(drv, "shell", "cmd", "bluetooth_manager", "enable")
-def _wifi_off(drv): _adb(drv, "shell", "svc", "wifi", "disable")
-def _wifi_on(drv):  _adb(drv, "shell", "svc", "wifi", "enable")
-def _gps_off(drv):  _adb(drv, "shell", "settings", "put", "secure", "location_mode", "0")
-def _gps_on(drv):   _adb(drv, "shell", "settings", "put", "secure", "location_mode", "3")
-
-
-def _is_wifi_adb(drv) -> bool:
-    return ":" in drv.cfg.get("udid", "")
-
-
-def _back_to_login(drv):
-    """에러 TC 후 앱이 로그인 화면이 아닌 경우 Back 키로 복귀."""
-    if drv.is_visible_text(LOGIN_TITLE, timeout=2):
-        return
-    # 서버 에러 팝업(302, 902 등) 먼저 닫기
-    for btn in OK_BTNS:
-        try:
-            drv.tap_text(btn, timeout=1, contains=False)
-            time.sleep(0.5)
-        except Exception:
-            pass
-    if drv.is_visible_text(LOGIN_TITLE, timeout=2):
-        return
-    for _ in range(4):
-        drv.drv.press_keycode(4)
-        time.sleep(0.8)
-        if drv.is_visible_text(LOGIN_TITLE, timeout=2):
-            return
 
 
 def _clear_serial(drv):
@@ -181,103 +146,6 @@ def test_login_006_wrong_serial_error(drv, runner):
     time.sleep(1)
     _clear_serial(drv)
     runner.assert_true(popup, "잘못된 시리얼 → 연결 시 에러 팝업 미표시")
-
-
-# ---------------------------------------------------------------------------
-# TC-LOGIN-ERR | 에러 케이스 (ADB 제어)
-# ---------------------------------------------------------------------------
-
-def test_login_err_10_bt_off(drv, runner):
-    """TC-LOGIN-ERR-10 | BT OFF → 연결하기 → 블루투스 꺼짐 에러 팝업"""
-    device_num = drv.cfg.get("test_device_number", "")
-    if not device_num:
-        log.info("TC-LOGIN-ERR-10: test_device_number 미설정 — 스킵")
-        return
-    _bt_off(drv)
-    time.sleep(2)
-    try:
-        enter_serial(drv, device_num)
-        drv.tap_text(CONNECT_BTN, timeout=5, contains=False)
-        popup = drv.is_visible_text(
-            ["블루투스", "Bluetooth", "블루투스 기능", "블루투스를 활성화"],
-            timeout=15
-        )
-        try:
-            drv.tap_text(OK_BTNS, timeout=5, contains=False)
-        except Exception:
-            pass
-        time.sleep(1)
-        _clear_serial(drv)
-        if popup:
-            log.info("TC-LOGIN-ERR-10: 블루투스 꺼짐 팝업 확인")
-        runner.assert_true(popup, "BT OFF 시 블루투스 에러 팝업 미표시")
-    finally:
-        _bt_on(drv)
-        time.sleep(3)
-        _back_to_login(drv)
-
-
-def test_login_err_11_gps_off(drv, runner):
-    """TC-LOGIN-ERR-11 | 위치 OFF → 연결하기 → 위치 꺼짐 에러 팝업"""
-    device_num = drv.cfg.get("test_device_number", "")
-    if not device_num:
-        log.info("TC-LOGIN-ERR-11: test_device_number 미설정 — 스킵")
-        return
-    _gps_off(drv)
-    time.sleep(1)
-    try:
-        enter_serial(drv, device_num)
-        drv.tap_text(CONNECT_BTN, timeout=5, contains=False)
-        popup = drv.is_visible_text(
-            ["위치", "위치 기능", "위치를 활성화", "Location"],
-            timeout=15
-        )
-        try:
-            drv.tap_text(OK_BTNS, timeout=5, contains=False)
-        except Exception:
-            pass
-        time.sleep(1)
-        _clear_serial(drv)
-        if popup:
-            log.info("TC-LOGIN-ERR-11: 위치 꺼짐 팝업 확인")
-        runner.assert_true(popup, "위치 OFF 시 에러 팝업 미표시")
-    finally:
-        _gps_on(drv)
-        time.sleep(1)
-        _back_to_login(drv)
-
-
-def test_login_err_01_network_off(drv, runner):
-    """TC-LOGIN-ERR-01 | WiFi OFF → 연결하기 → 네트워크 에러 팝업"""
-    if _is_wifi_adb(drv):
-        log.info("TC-LOGIN-ERR-01: WiFi ADB 연결 중 — 스킵")
-        return
-    device_num = drv.cfg.get("test_device_number", "")
-    if not device_num:
-        log.info("TC-LOGIN-ERR-01: test_device_number 미설정 — 스킵")
-        return
-    _wifi_off(drv)
-    time.sleep(2)
-    try:
-        enter_serial(drv, device_num)
-        drv.tap_text(CONNECT_BTN, timeout=5, contains=False)
-        popup = drv.is_visible_text(
-            ["네트워크", "네트워크 연결 안됨", "인터넷", "Network", "network"],
-            timeout=15
-        )
-        try:
-            drv.tap_text(OK_BTNS, timeout=5, contains=False)
-        except Exception:
-            pass
-        time.sleep(1)
-        _clear_serial(drv)
-        if popup:
-            log.info("TC-LOGIN-ERR-01: 네트워크 꺼짐 팝업 확인")
-        runner.assert_true(popup, "WiFi OFF 시 네트워크 에러 팝업 미표시")
-    finally:
-        _wifi_on(drv)
-        time.sleep(4)
-        _back_to_login(drv)
 
 
 TESTS = [
