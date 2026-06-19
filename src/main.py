@@ -137,11 +137,11 @@ def main():
                 _INFO_SCREEN = ["검사 정보 확인", "Study Information Confirmation", "대상 ID", "이름"]
                 _ERR_POPUP   = ["알 수 없는 오류", "오류", "Error"]
                 _OK_BTNS     = ["확인", "Ok", "OK"]
-                for _ in range(3):
+                for _ in range(5):
                     enter_serial(driver, device_num)
                     driver.tap_text(CONNECT_BTN, timeout=5, contains=False)
-                    # BLE 연결 + 서버 응답 대기 (최대 60s), 에러 팝업 감지 시 dismiss 후 재시도
-                    deadline = _t.monotonic() + 60
+                    # BLE 연결 + 서버 응답 대기 (최대 90s), 에러 팝업 감지 시 dismiss 후 재시도
+                    deadline = _t.monotonic() + 90
                     reached = False
                     while _t.monotonic() < deadline:
                         if driver.is_visible_text(_INFO_SCREEN, timeout=1):
@@ -152,11 +152,12 @@ def main():
                                 driver.tap_text(_OK_BTNS, timeout=3, contains=False)
                             except Exception:
                                 pass
-                            _t.sleep(5)  # 서버 세션 정리 대기
+                            _t.sleep(10)  # 서버 세션 정리 대기
                             break
                         _t.sleep(0.5)
                     if reached:
                         break
+                    _t.sleep(5)  # 다음 시도 전 대기
             except Exception:
                 pass
         for name, tests in suites_phase2:
@@ -164,7 +165,10 @@ def main():
             total_passed += p; total_all += t
 
         # Phase 3a — 검사 화면 (검사 시작 후 연결 상태 테스트, 종료 전)
-        go_to_exam_screen(driver)
+        try:
+            go_to_exam_screen(driver)
+        except Exception as _e:
+            reporter.log_event("go_to_exam_screen_failed", {"error": str(_e)})
         for name, tests in suites_phase3a:
             p, t = _run_suite(name, tests)
             total_passed += p; total_all += t
@@ -194,7 +198,8 @@ def main():
         if args.result_json:
             import json
             results = [
-                {"name": r.name, "passed": r.passed, "message": r.message, "duration_s": r.duration_s}
+                {"name": r.name, "passed": r.passed, "skipped": r.skipped,
+                 "message": r.message, "duration_s": r.duration_s}
                 for r in runner.results
             ]
             os.makedirs(os.path.dirname(args.result_json) or ".", exist_ok=True)

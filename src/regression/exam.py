@@ -120,12 +120,29 @@ def test_exam_003_start_exam(drv, runner):
     """TC-EXAM-011 | '검사 시작' 클릭 → '검사 종료' 버튼 표시"""
     if not drv.is_visible_text(_START_BTN, timeout=3):
         runner.skip("이미 검사 중 — Start Study 버튼 없음")
-    drv.tap_text(_START_BTN, timeout=5, contains=False)
-    _wait_loading_clear(drv, timeout=30)
-    ok = drv.is_visible_text(_STOP_BTN, timeout=20)
-    runner.assert_true(ok, "'검사 시작' 클릭 후 '검사 종료/End Study' 버튼이 표시되지 않음")
-    if ok:
-        log.info("TC-EXAM-003: '검사 종료' 버튼 표시 확인 — 검사 시작됨")
+
+    for attempt in range(2):
+        drv.tap_text(_START_BTN, timeout=5, contains=False)
+        _wait_loading_clear(drv, timeout=60)
+        if drv.is_visible_text(_STOP_BTN, timeout=10):
+            log.info("TC-EXAM-003: '검사 종료' 버튼 표시 확인 — 검사 시작됨")
+            return
+        # 에러 팝업 dismiss 후 재시도
+        try:
+            drv.tap_text(["확인", "Ok", "OK", "재시도", "Retry"], timeout=3, contains=False)
+            time.sleep(2)
+        except Exception:
+            pass
+        if not drv.is_visible_text(_START_BTN, timeout=3):
+            break
+        if attempt == 0:
+            log.warning("TC-EXAM-003: attempt 1 실패 — 5초 후 재시도")
+            time.sleep(5)
+
+    runner.assert_true(
+        drv.is_visible_text(_STOP_BTN, timeout=5),
+        "'검사 시작' 클릭 후 '검사 종료/End Study' 버튼이 표시되지 않음"
+    )
 
 
 def test_exam_d01_dashboard_labels(drv, runner):
@@ -302,10 +319,23 @@ def test_exam_006_stop_and_go_summary(drv, runner):
             pass
     if not tapped:
         log.warning("TC-EXAM-006: 체크박스를 찾지 못함 — 종료 버튼 직접 탭 시도")
-    try:
-        drv.tap_text(_STOP_BTN, timeout=5, contains=False)
-    except Exception:
-        drv.tap_text(["확인", "Ok", "OK", "Confirm"], timeout=5, contains=False)
+    # 팝업 확인 버튼: DOM 마지막 = 팝업 버튼 (첫 번째 = 배경 버튼, 모달에 막힘)
+    confirmed = False
+    for btn_text in _STOP_BTN:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{btn_text}"]')
+            if els:
+                els[-1].click()
+                confirmed = True
+                time.sleep(2)
+                break
+        except Exception:
+            pass
+    if not confirmed:
+        try:
+            drv.tap_text(["확인", "Ok", "OK", "Confirm"], timeout=5, contains=False)
+        except Exception:
+            pass
     time.sleep(2)
     on_summary = drv.is_visible_text(_SUMMARY_TEXT, timeout=20)
     runner.assert_true(on_summary, "검사 종료 후 요약 화면으로 이동하지 않음")

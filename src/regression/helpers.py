@@ -124,19 +124,46 @@ def _force_end_exam_to_login(drv):
     _SKIP_CB_DESCS  = ["건너뛰겠습니다.", "I want to skip upload."]
     _SKIP_CONFIRM   = ["Yes, Skip", "건너뛰기", "Skip"]
 
-    # 0-a) 검사 미시작 상태 — Back 키로 로그인 복귀
+    # 0-a) 검사 미시작 상태 — Back 키 → 실패 시 ADB pm clear 로 로그인 복귀
     if drv.is_visible_text(_START_BTN_TEXT, timeout=3):
-        log.info("[setup] 검사 시작 전 화면 감지 — Back 키로 로그인 복귀")
-        for _ in range(5):
+        log.info("[setup] 검사 시작 전 화면 감지 — Back 키로 로그인 복귀 시도")
+        _exit_btns = ["확인", "Ok", "OK", "예", "Yes", "나가기",
+                      "종료", "Exit", "Leave", "Disconnect", "연결 해제", "해제"]
+        for _ in range(8):
             drv.drv.press_keycode(4)
-            time.sleep(1)
+            time.sleep(1.5)
             if drv.is_visible_text(LOGIN_TITLE, timeout=2):
                 return
             try:
-                drv.tap_text(["확인", "Ok", "OK", "예", "Yes", "나가기"], timeout=2, contains=False)
+                drv.tap_text(_exit_btns, timeout=2, contains=False)
                 time.sleep(1)
+                if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+                    return
             except Exception:
                 pass
+
+        # Back 키 실패 → ADB pm clear (세션 데이터 초기화)
+        log.warning("[setup] Back 키 복귀 실패 — ADB pm clear 로 앱 초기화")
+        _pkg  = drv.cfg.get("app_package", "")
+        _udid = drv.cfg.get("udid", "")
+        if _pkg:
+            _base = ["adb"] + (["-s", _udid] if _udid else [])
+            try:
+                subprocess.run(_base + ["shell", "pm", "clear", _pkg],
+                               capture_output=True, timeout=15)
+                time.sleep(2)
+            except Exception:
+                pass
+            try:
+                drv.drv.activate_app(_pkg)
+            except Exception:
+                _act = drv.cfg.get("app_activity", "")
+                if _act:
+                    drv.drv.start_activity(_pkg, _act)
+            time.sleep(3)
+            if drv.is_visible_text(LOGIN_TITLE, timeout=5):
+                log.info("[setup] ADB 초기화 후 로그인 화면 복귀 확인")
+                return
         return
 
     # 0-b) 검사 정보 확인 화면 — Back 키로 로그인 복귀
