@@ -104,21 +104,25 @@ def main():
             pre = len(runner.results)
             runner.run_all(tests)
             batch    = runner.results[pre:]
-            passed   = sum(1 for r in batch if r.passed)
-            failures = [f"{r.name}: {r.message}" for r in batch if not r.passed]
+            skipped  = sum(1 for r in batch if r.skipped)
+            passed   = sum(1 for r in batch if r.passed and not r.skipped)
+            ran      = len(batch) - skipped
+            failures = [f"{r.name}: {r.message}" for r in batch if not r.passed and not r.skipped]
             reporter.log_event("regression_suite_result", {
-                "suite": name, "passed": passed, "total": len(batch), "failures": failures,
+                "suite": name, "passed": passed, "total": ran,
+                "skipped": skipped, "failures": failures,
             })
             if _slack_on:
                 try:
                     slack_regression_suite(_webhook, name, passed, len(batch), failures, _mention)
                 except Exception:
                     pass
-            return passed, len(batch)
+            return passed, ran
 
         # Phase 1 — 로그인 화면
         reset_to_login(driver, hard=True)
         for name, tests in suites_phase1:
+            reset_to_login(driver, hard=False)
             p, t = _run_suite(name, tests)
             total_passed += p; total_all += t
 
@@ -175,8 +179,10 @@ def main():
             p, t = _run_suite(name, tests)
             total_passed += p; total_all += t
 
+        total_skipped = sum(1 for r in runner.results if r.skipped)
         reporter.log_event("run_complete", {
-            "passed": total_passed, "total": total_all, "status": "ok",
+            "passed": total_passed, "total": total_all,
+            "skipped": total_skipped, "status": "ok",
         })
 
         if _slack_on:
@@ -193,7 +199,8 @@ def main():
             ]
             os.makedirs(os.path.dirname(args.result_json) or ".", exist_ok=True)
             with open(args.result_json, "w", encoding="utf-8") as f:
-                json.dump({"passed": total_passed, "total": total_all, "results": results}, f,
+                json.dump({"passed": total_passed, "total": total_all,
+                           "skipped": total_skipped, "results": results}, f,
                           ensure_ascii=False, indent=2)
 
     except Exception as e:

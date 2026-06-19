@@ -85,8 +85,7 @@ def test_exam_001_screen_visible(drv, runner):
 def test_exam_002_status_indicators(drv, runner):
     """TC-EXAM-002 | 상태 표시 — 네트워크/블루투스/배터리 라벨 존재"""
     if not _on_exam(drv):
-        log.info("TC-EXAM-002: 검사 화면이 아님 — 스킵")
-        return
+        runner.skip("검사 화면이 아님")
     found = drv.is_visible_text(_STATUS_LABELS, timeout=5)
     if found:
         log.info("TC-EXAM-002: 상태 라벨 확인")
@@ -98,8 +97,7 @@ def test_exam_002_status_indicators(drv, runner):
 def test_exam_d08_initial_values(drv, runner):
     """TC-EXAM-D08 | 검사 시작 전 대시보드 — 라벨 및 초기값 표시"""
     if not drv.is_visible_text(_START_BTN, timeout=3):
-        log.info("TC-EXAM-D08: 이미 검사 중 — 스킵")
-        return
+        runner.skip("이미 검사 중 — Start Study 버튼 없음")
     missing = []
     for pair in _DASHBOARD_LABEL_PAIRS:
         if drv.is_visible_text(pair, timeout=2):
@@ -121,8 +119,7 @@ def test_exam_d08_initial_values(drv, runner):
 def test_exam_003_start_exam(drv, runner):
     """TC-EXAM-011 | '검사 시작' 클릭 → '검사 종료' 버튼 표시"""
     if not drv.is_visible_text(_START_BTN, timeout=3):
-        log.info("TC-EXAM-003: 이미 검사 중 — 스킵")
-        return
+        runner.skip("이미 검사 중 — Start Study 버튼 없음")
     drv.tap_text(_START_BTN, timeout=5, contains=False)
     _wait_loading_clear(drv, timeout=30)
     ok = drv.is_visible_text(_STOP_BTN, timeout=20)
@@ -134,8 +131,7 @@ def test_exam_003_start_exam(drv, runner):
 def test_exam_d01_dashboard_labels(drv, runner):
     """TC-EXAM-D01 | 검사 시작 후 대시보드 6개 항목 라벨 표시"""
     if not drv.is_visible_text(_STOP_BTN, timeout=3):
-        log.info("TC-EXAM-D01: 검사 미시작 상태 — 스킵")
-        return
+        runner.skip("검사 미시작 — End Study 버튼 없음")
     missing = []
     for pair in _DASHBOARD_LABEL_PAIRS:
         if drv.is_visible_text(pair, timeout=2):
@@ -152,8 +148,7 @@ def test_exam_d01_dashboard_labels(drv, runner):
 def test_exam_d02_monitor_during_exam(drv, runner):
     """TC-EXAM-D02 | 검사 진행 중 10분 모니터링 — 화면 유지·에러 팝업·대시보드 상태 확인"""
     if not drv.is_visible_text(_STOP_BTN, timeout=3):
-        log.info("TC-EXAM-D02: 검사 미시작 상태 — 스킵")
-        return
+        runner.skip("검사 미시작 — End Study 버튼 없음")
 
     deadline    = time.monotonic() + _MONITOR_DURATION
     check_num   = 0
@@ -206,8 +201,7 @@ def test_exam_d02_monitor_during_exam(drv, runner):
 def test_exam_004_stop_exam_popup(drv, runner):
     """TC-EXAM-013 | '검사 종료' 클릭 → 팝업 표시 → 취소 → 검사 화면 복귀 확인"""
     if not drv.is_visible_text(_STOP_BTN, timeout=3):
-        log.info("TC-EXAM-004: 검사 미시작 상태 — 스킵")
-        return
+        runner.skip("검사 미시작 — End Study 버튼 없음")
     drv.tap_text(_STOP_BTN, timeout=5, contains=False)
     time.sleep(1)
     popup_visible = drv.is_visible_text(_STOP_POPUP_TEXT, timeout=5)
@@ -226,8 +220,7 @@ def test_exam_004_stop_exam_popup(drv, runner):
 def test_exam_005_stop_exam_checkbox(drv, runner):
     """TC-EXAM-014 | 검사 종료 팝업 — 체크박스 미체크 시 '검사 종료' 비활성화"""
     if not drv.is_visible_text(_STOP_BTN, timeout=3):
-        log.info("TC-EXAM-005: 검사 미시작 상태 — 스킵")
-        return
+        runner.skip("검사 미시작 — End Study 버튼 없음")
     drv.tap_text(_STOP_BTN, timeout=5, contains=False)
     time.sleep(1)
     if not drv.is_visible_text(_STOP_POPUP_TEXT, timeout=3):
@@ -261,8 +254,7 @@ def test_exam_005_stop_exam_checkbox(drv, runner):
 def test_exam_set_001_settings_entry(drv, runner):
     """TC-EXAM-SET-001 | 설정 아이콘 → 설정 화면 이동"""
     if not _on_exam(drv):
-        log.info("TC-EXAM-SET-001: 검사 화면이 아님 — 스킵")
-        return
+        runner.skip("검사 화면이 아님")
     cx, cy = SETTING_ICON_CENTER
     drv.drv.tap([(cx, cy)])
     time.sleep(1)
@@ -293,8 +285,7 @@ def test_exam_006_stop_and_go_summary(drv, runner):
     """TC-EXAM-015 | 검사 종료 팝업 — 체크박스 체크 + '검사 종료' → 요약 화면 이동"""
     _wait_loading_clear(drv, timeout=30)
     if not drv.is_visible_text(_STOP_BTN, timeout=5):
-        log.info("TC-EXAM-006: 검사 미시작 상태 — 스킵")
-        return
+        runner.skip("검사 미시작 — End Study 버튼 없음")
     drv.tap_text(_STOP_BTN, timeout=5, contains=False)
     time.sleep(1)
     _wait_loading_clear(drv, timeout=10)

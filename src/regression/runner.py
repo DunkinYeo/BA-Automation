@@ -6,12 +6,17 @@ from typing import Callable
 log = logging.getLogger(__name__)
 
 
+class _SkipSignal(Exception):
+    pass
+
+
 @dataclasses.dataclass
 class TestResult:
     name: str
     passed: bool
     message: str
     duration_s: float
+    skipped: bool = False
     screenshot: str | None = None
 
 
@@ -32,15 +37,17 @@ class TestRunner:
     def fail(self, message: str):
         raise Exception(message)
 
+    def skip(self, reason: str = ""):
+        """TC를 SKIP으로 명시적 처리 — 총 카운트에서 제외."""
+        raise _SkipSignal(reason)
+
     @staticmethod
     def _clean_message(e: Exception) -> str:
         msg = str(e)
         first_line = msg.split('\n')[0].strip()
-        # Selenium exceptions: "Message: ...\nStacktrace:\n..."
         if first_line.startswith('Message:'):
             body = first_line[len('Message:'):].strip()
             if not body:
-                # Empty message — extract exception type from stacktrace
                 for line in msg.split('\n'):
                     line = line.strip()
                     if 'NoSuchElement' in line or 'could not be located' in line:
@@ -67,6 +74,12 @@ class TestRunner:
             duration = time.monotonic() - start
             result = TestResult(name=name, passed=True, message="PASS", duration_s=duration)
             log.info("  PASS (%.1fs)", duration)
+        except _SkipSignal as e:
+            duration = time.monotonic() - start
+            reason = str(e) or "조건 미충족"
+            result = TestResult(name=name, passed=True, message=f"SKIP: {reason}",
+                                duration_s=duration, skipped=True)
+            log.info("  SKIP: %s (%.1fs)", reason, duration)
         except Exception as e:
             duration = time.monotonic() - start
             try:
@@ -87,16 +100,24 @@ class TestRunner:
         return self.summary()
 
     def summary(self) -> dict:
-        total = len(self.results)
-        passed = sum(1 for r in self.results if r.passed)
+        total    = len(self.results)
+        skipped  = sum(1 for r in self.results if r.skipped)
+        ran      = total - skipped
+        passed   = sum(1 for r in self.results if r.passed and not r.skipped)
         log.info("=" * 50)
-        log.info("Regression: %d/%d passed", passed, total)
+        log.info("Regression: %d/%d passed (%d skipped)", passed, ran, skipped)
         for r in self.results:
-            icon = "PASS" if r.passed else "FAIL"
+            if r.skipped:
+                icon = "SKIP"
+            elif r.passed:
+                icon = "PASS"
+            else:
+                icon = "FAIL"
             log.info("  [%s] %s", icon, r.name)
-            if not r.passed:
+            if not r.passed and not r.skipped:
                 log.info("       -> %s", r.message)
                 if r.screenshot:
                     log.info("       screenshot: %s", r.screenshot)
         log.info("=" * 50)
-        return {"total": total, "passed": passed, "failed": total - passed, "results": self.results}
+        return {"total": ran, "passed": passed, "skipped": skipped,
+                "failed": ran - passed, "results": self.results}

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 _CONFIRM_BTN    = ["확인", "Confirm", "OK"]
 _EXAM_TEXT      = ["검사 시작", "Start Study"]
 _INFO_SCREEN    = ["검사 정보 확인", "Study Information Confirmation", "대상 ID", "이름"]
-_CHECKBOX_DESC  = ["확인했습니다.", "I confirm", "Confirmed"]
+_CHECKBOX_DESC  = ["확인했습니다.", "I confirm", "Confirmed", "All information is correct."]
 
 
 def _wait_for_info_screen(drv, timeout: int = 60) -> bool:
@@ -94,8 +94,7 @@ def test_info_003_checkbox_unchecked_confirm_disabled(drv, runner):
     # clickable/enabled 속성으로 판단 (React Native 앱 특성상 enabled=true일 수 있어 SKIP 허용)
     enabled = _is_confirm_enabled(drv)
     if enabled is None:
-        log.info("TC-INFO-003: '확인' 버튼 상태 감지 불가 — 스킵")
-        return
+        runner.skip("확인 버튼 상태 감지 불가")
     runner.assert_false(enabled, "체크박스 미체크 상태에서 '확인'이 활성화됨")
 
 

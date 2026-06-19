@@ -60,8 +60,7 @@ def test_summary_002_button_state(drv, runner):
 def test_summary_006_skip_popup(drv, runner):
     """TC-SUMMARY-006 | '건너뛰기' 클릭 → 확인 팝업 표시"""
     if not drv.is_visible_text(_SKIP_BTN, timeout=3):
-        log.info("TC-SUMMARY-006: '건너뛰기/Skip' 버튼 없음 (완료 상태) — 스킵")
-        return
+        runner.skip("Skip 버튼 없음 — 데이터 정상 업로드 완료 상태")
     drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
     time.sleep(1)
     popup_visible = drv.is_visible_text(_SKIP_BTN + ["중단", "확인", "체크", "Confirm", "Cancel"], timeout=5)
@@ -78,8 +77,7 @@ def test_summary_006_skip_popup(drv, runner):
 def test_summary_007_skip_confirm(drv, runner):
     """TC-SUMMARY-007 | 건너뛰기 팝업 — 체크박스 체크 + '건너뛰기' → 로그인 화면 이동"""
     if not drv.is_visible_text(_SKIP_BTN, timeout=3):
-        log.info("TC-SUMMARY-007: '건너뛰기/Skip' 버튼 없음 (완료 상태) — 스킵")
-        return
+        runner.skip("Skip 버튼 없음 — 데이터 정상 업로드 완료 상태")
     drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
     time.sleep(1)
     import re
@@ -139,8 +137,7 @@ def test_summary_007_skip_confirm(drv, runner):
 def test_summary_003_complete_to_login(drv, runner):
     """TC-SUMMARY-003 | '완료' 버튼 클릭 → 로그인 화면 이동"""
     if not drv.is_visible_text(_COMPLETE_BTN, timeout=3):
-        log.info("TC-SUMMARY-003: '완료/Done' 버튼 없음 (데이터 누락 상태) — 스킵")
-        return
+        runner.skip("Done 버튼 없음 — 데이터 미완료, Upload/Skip 버튼 상태")
     drv.tap_text(_COMPLETE_BTN, timeout=5, contains=False)
     time.sleep(2)
     on_login = drv.is_visible_text(_LOGIN_TEXT, timeout=10)

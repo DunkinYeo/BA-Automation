@@ -68,7 +68,7 @@ def test_conn_000_exam_active(drv, runner):
 def test_conn_001_bt_off_popup(drv, runner):
     """TC-CONN-001 | BT OFF → 블루투스 에러 팝업 표시 (20s 이내)"""
     if not _on_exam_screen(drv):
-        return
+        runner.skip("검사 화면 아님")
     _bt_off(drv)
     try:
         ok, elapsed = _poll_until(drv, ["블루투스", "Bluetooth", "연결이 끊어", "연결 끊김"], appear=True, timeout=20)
@@ -87,7 +87,7 @@ def test_conn_001_bt_off_popup(drv, runner):
 def test_conn_002_bt_recovery(drv, runner):
     """TC-CONN-002 | BT OFF → ON → 검사 화면 복구 (90s 이내)"""
     if not _on_exam_screen(drv):
-        return
+        runner.skip("검사 화면 아님")
     _bt_off(drv)
     time.sleep(5)
     _bt_on(drv)
@@ -100,10 +100,9 @@ def test_conn_002_bt_recovery(drv, runner):
 def test_conn_003_wifi_off_network_card(drv, runner):
     """TC-CONN-003 | WiFi OFF → OS 수준 wifi_on=0 확인 (네트워크 상태 변화)"""
     if _is_wifi_adb(drv):
-        log.info("TC-CONN-003: WiFi ADB 연결 중 — WiFi OFF 스킵")
-        return
+        runner.skip("WiFi ADB 연결 중 — WiFi OFF 불가")
     if not _on_exam_screen(drv):
-        return
+        runner.skip("검사 화면 아님")
     _wifi_off(drv)
     try:
         wifi_off = _wifi_is_off(drv)
@@ -118,8 +117,7 @@ def test_conn_003_wifi_off_network_card(drv, runner):
 def test_conn_004_wifi_recovery(drv, runner):
     """TC-CONN-004 | WiFi OFF → ON → wifi_on=1 복구 (15s 이내)"""
     if _is_wifi_adb(drv):
-        log.info("TC-CONN-004: WiFi ADB 연결 중 — 스킵")
-        return
+        runner.skip("WiFi ADB 연결 중 — WiFi OFF 불가")
     _wifi_off(drv)
     time.sleep(2)
     _wifi_on(drv)
