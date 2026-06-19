@@ -112,14 +112,34 @@ def reset_to_login(drv, hard: bool = True):
 def _force_end_exam_to_login(drv):
     """활성 검사/요약 세션에서 로그인 화면으로 강제 복귀."""
     from selenium.webdriver.common.by import By
-    _STOP_BTN_TEXT = "검사 종료"
-    _STOP_CB_DESCS = ["검사를 종료하겠습니다.", "I confirm termination"]
-    _SUMMARY_TEXTS = ["진행률", "데이터 업로드", "시작 시간", "종료 시간"]
-    _SKIP_BTNS     = ["건너뛰기", "Skip"]
-    _DONE_BTNS     = ["완료", "Done", "Complete"]
-    _EXAM_CONFIRM  = ["검사 정보 확인", "Study Information Confirmation"]
+    _STOP_BTN_TEXT  = ["검사 종료", "End Study"]
+    _STOP_CB_DESCS  = ["검사를 종료하겠습니다.", "I want to end study.", "I confirm termination"]
+    _SUMMARY_TEXTS  = ["진행률", "Progress", "Data Upload", "데이터 업로드",
+                       "시작 시간", "Start Time", "종료 시간", "End Time"]
+    _SKIP_BTNS      = ["건너뛰기", "Skip"]
+    _DONE_BTNS      = ["완료", "Done", "Complete"]
+    _EXAM_CONFIRM   = ["검사 정보 확인", "Study Information Confirmation", "Study Information"]
+    _START_BTN_TEXT = ["검사 시작", "Start Study"]
+    # 건너뛰기 팝업 (실제 확인된 UI)
+    _SKIP_CB_DESCS  = ["건너뛰겠습니다.", "I want to skip upload."]
+    _SKIP_CONFIRM   = ["Yes, Skip", "건너뛰기", "Skip"]
 
-    # 0) 검사 정보 확인 화면인 경우 — Back 키로 로그인 복귀
+    # 0-a) 검사 미시작 상태 — Back 키로 로그인 복귀
+    if drv.is_visible_text(_START_BTN_TEXT, timeout=3):
+        log.info("[setup] 검사 시작 전 화면 감지 — Back 키로 로그인 복귀")
+        for _ in range(5):
+            drv.drv.press_keycode(4)
+            time.sleep(1)
+            if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+                return
+            try:
+                drv.tap_text(["확인", "Ok", "OK", "예", "Yes", "나가기"], timeout=2, contains=False)
+                time.sleep(1)
+            except Exception:
+                pass
+        return
+
+    # 0-b) 검사 정보 확인 화면 — Back 키로 로그인 복귀
     if drv.is_visible_text(_EXAM_CONFIRM, timeout=3):
         log.info("[setup] 검사 정보 확인 화면 감지 — Back 키로 로그인 복귀")
         for _ in range(3):
@@ -128,24 +148,46 @@ def _force_end_exam_to_login(drv):
             if drv.is_visible_text(LOGIN_TITLE, timeout=2):
                 return
 
-    # 1) 요약 화면인 경우 — 업로드 버튼/완료 버튼 탭으로 바로 로그인 복귀
+    # 1) 요약 화면 — 완료 or 건너뛰기(팝업 포함) 처리 후 로그인 복귀
     if drv.is_visible_text(_SUMMARY_TEXTS, timeout=3):
-        log.info("[setup] 요약 화면 감지 — 완료/건너뛰기 탭으로 로그인 복귀")
-        for btn in [_DONE_BTNS, _SKIP_BTNS]:
-            if drv.is_visible_text(LOGIN_TITLE, timeout=2):
-                return
-            try:
-                drv.tap_text(btn, timeout=5, contains=False)
-                time.sleep(2)
-            except Exception:
-                pass
+        log.info("[setup] 요약 화면 감지 — 완료/건너뛰기 처리 후 로그인 복귀")
+        if drv.is_visible_text(LOGIN_TITLE, timeout=1):
+            return
+        # 완료(Done) 버튼이 있으면 탭
+        try:
+            drv.tap_text(_DONE_BTNS, timeout=3, contains=False)
+            time.sleep(2)
+        except Exception:
+            pass
+        if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+            return
+        # 건너뛰기(Skip) 버튼 탭 → 팝업 처리
+        try:
+            drv.tap_text(_SKIP_BTNS, timeout=3, contains=False)
+            time.sleep(1)
+            # 건너뛰기 팝업 체크박스 (실제 텍스트: "I want to skip upload.")
+            for desc in _SKIP_CB_DESCS:
+                els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+                if els:
+                    els[0].click()
+                    time.sleep(0.4)
+                    break
+            # 팝업 확인 버튼 ("Yes, Skip")
+            for btn in _SKIP_CONFIRM:
+                els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{btn}"]')
+                if els:
+                    els[-1].click()
+                    time.sleep(2)
+                    break
+        except Exception:
+            pass
         if drv.is_visible_text(LOGIN_TITLE, timeout=3):
             return
 
-    # 2) 검사 화면인 경우 — 검사 종료 팝업 → 체크박스 → 확인
+    # 2) 검사 화면 — 종료 팝업 → 체크박스 → 확인 → 요약 → 로그인
     try:
         drv.tap_text(_STOP_BTN_TEXT, timeout=5, contains=False)
-        time.sleep(1)
+        time.sleep(1.5)
     except Exception:
         pass
 
@@ -159,19 +201,39 @@ def _force_end_exam_to_login(drv):
         except Exception:
             pass
 
+    # 팝업 확인 버튼: DOM 마지막 "End Study" = 팝업 버튼 (배경 버튼과 구분)
     try:
-        drv.tap_text(_STOP_BTN_TEXT, timeout=5, contains=False)
-        time.sleep(2)
+        for btn_text in _STOP_BTN_TEXT:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{btn_text}"]')
+            if els:
+                els[-1].click()
+                time.sleep(2)
+                break
     except Exception:
         pass
 
-    # 3) 요약 화면에서 완료/건너뛰기
-    for btn in [_DONE_BTNS, _SKIP_BTNS]:
+    # 3) 요약 화면 재처리 (검사 종료 후 진입)
+    for _ in range(2):
         if drv.is_visible_text(LOGIN_TITLE, timeout=2):
             return
         try:
-            drv.tap_text(btn, timeout=5, contains=False)
+            drv.tap_text(_DONE_BTNS, timeout=3, contains=False)
             time.sleep(2)
+        except Exception:
+            pass
+        if drv.is_visible_text(LOGIN_TITLE, timeout=2):
+            return
+        try:
+            drv.tap_text(_SKIP_BTNS, timeout=3, contains=False)
+            time.sleep(1)
+            for desc in _SKIP_CB_DESCS:
+                els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{desc}"]')
+                if els:
+                    els[0].click(); time.sleep(0.4); break
+            for btn in _SKIP_CONFIRM:
+                els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{btn}"]')
+                if els:
+                    els[-1].click(); time.sleep(2); break
         except Exception:
             pass
 
@@ -321,7 +383,7 @@ def _dismiss_error_popups(drv):
 
 def _check_and_confirm(drv):
     # content-desc="확인했습니다." 기반 체크박스 탭 (React Native 커스텀 컴포넌트)
-    _CHECKBOX_DESC = ["확인했습니다.", "I confirm", "Confirmed"]
+    _CHECKBOX_DESC = ["확인했습니다.", "I confirm", "Confirmed", "All information is correct."]
     tapped = False
     try:
         from selenium.webdriver.common.by import By
@@ -346,6 +408,6 @@ def _check_and_confirm(drv):
         except Exception:
             pass
     try:
-        drv.tap_text(OK_BTNS, timeout=5, contains=False)
+        drv.tap_text(OK_BTNS + ["Confirm"], timeout=5, contains=False)
     except Exception:
         pass

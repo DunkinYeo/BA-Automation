@@ -71,19 +71,12 @@ def _go_setting(drv):
 # Test Cases — 설정 메인 화면
 # ---------------------------------------------------------------------------
 
-def test_set_001_entry(drv, runner):
-    """TC-SET-001 | 로그인 화면 설정 아이콘 → 설정 화면 이동"""
-    runner.assert_true(drv.is_visible_text(LOGIN_TITLE, timeout=3), "로그인 화면이 아님")
-    ok = _go_setting(drv)
-    runner.assert_true(ok, "설정 아이콘 탭 후 설정 화면 미이동")
-    if ok:
-        log.info("TC-SET-001: 설정 화면 진입 확인")
-
-
 def test_set_002_menu_items(drv, runner):
-    """TC-SET-002 | 설정 화면 — 버전 정보 / 기기 정보 / 검사 정보 메뉴 표시"""
+    """TC-SET-002 | 설정 화면 진입 + 버전 정보 / 기기 정보 / 검사 정보 메뉴 표시"""
     if not _on_setting(drv):
-        tap_setting_icon(drv)
+        runner.assert_true(drv.is_visible_text(LOGIN_TITLE, timeout=3), "로그인 화면이 아님")
+        ok = _go_setting(drv)
+        runner.assert_true(ok, "설정 아이콘 탭 후 설정 화면 미이동")
     for key, texts in SETTING_ITEMS.items():
         runner.assert_true(
             drv.is_visible_text(texts, timeout=3),
@@ -192,7 +185,6 @@ def test_set_007_back_to_login(drv, runner):
 
 
 TESTS = [
-    test_set_001_entry,
     test_set_002_menu_items,
     test_set_003_version_info,
     test_set_004_file_screen_5tap,

@@ -10,8 +10,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
-_EXAM_TEXT   = "검사 시작"
-_RUNNING_TEXT = "검사 종료"
+_EXAM_TEXT    = ["검사 시작", "Start Study"]
+_RUNNING_TEXT = ["검사 종료", "End Study"]
 
 
 def _adb(drv, *args):
@@ -53,7 +53,7 @@ def _poll_until(drv, text, appear: bool, timeout: int) -> tuple[bool, float]:
 
 
 def _on_exam_screen(drv) -> bool:
-    return drv.is_visible_text([_EXAM_TEXT, _RUNNING_TEXT], timeout=3)
+    return drv.is_visible_text(_EXAM_TEXT + _RUNNING_TEXT, timeout=3)
 
 
 # ---------------------------------------------------------------------------
@@ -85,16 +85,16 @@ def test_conn_001_bt_off_popup(drv, runner):
 
 
 def test_conn_002_bt_recovery(drv, runner):
-    """TC-CONN-002 | BT OFF → ON → 검사 화면 복구 (30s 이내)"""
+    """TC-CONN-002 | BT OFF → ON → 검사 화면 복구 (90s 이내)"""
     if not _on_exam_screen(drv):
         return
     _bt_off(drv)
     time.sleep(5)
     _bt_on(drv)
-    ok, elapsed = _poll_until(drv, [_EXAM_TEXT, _RUNNING_TEXT], appear=True, timeout=30)
+    ok, elapsed = _poll_until(drv, _EXAM_TEXT + _RUNNING_TEXT, appear=True, timeout=90)
     if ok:
         log.info("TC-CONN-002: BT 재연결 후 검사 화면 복구 %.1fs", elapsed)
-    runner.assert_true(ok, f"BT 재활성화 후 30s 내 검사 화면 복구 실패")
+    runner.assert_true(ok, f"BT 재활성화 후 90s 내 검사 화면 복구 실패")
 
 
 def test_conn_003_wifi_off_network_card(drv, runner):

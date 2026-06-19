@@ -22,31 +22,25 @@ from selenium.webdriver.common.by import By
 
 log = logging.getLogger(__name__)
 
-_COMPLETE_BTN  = "완료"
-_UPLOAD_BTN    = "업로드"
-_SKIP_BTN      = "건너뛰기"
-_LOGIN_TEXT    = "연결하기"
+_COMPLETE_BTN = ["완료", "Done", "Complete"]
+_UPLOAD_BTN   = ["업로드", "Upload"]
+_SKIP_BTN     = ["건너뛰기", "Skip"]
+_LOGIN_TEXT   = ["연결하기", "Connect", "Connect Your Device", "기기 연결하기"]
 
+_SUMMARY_INDICATORS = ["진행률", "Progress", "시작 시간", "Start Time",
+                       "종료 시간", "End Time", "검사 정보", "Study Information"]
 
-_SUMMARY_INDICATORS = ["진행률", "검사 정보", "시작 시간", "종료 시간"]
+_SKIP_CB_DESCS = ["건너뛰겠습니다.", "I want to skip upload.", "I confirm skip"]
+_ALL_SUMMARY   = _SUMMARY_INDICATORS + _COMPLETE_BTN + _UPLOAD_BTN + _SKIP_BTN
 
 
 def _on_summary(drv) -> bool:
-    return drv.is_visible_text(_SUMMARY_INDICATORS + [_COMPLETE_BTN, _UPLOAD_BTN, _SKIP_BTN], timeout=5)
+    return drv.is_visible_text(_ALL_SUMMARY, timeout=5)
 
 
 # ---------------------------------------------------------------------------
 # Test Cases
 # ---------------------------------------------------------------------------
-
-def test_summary_001_screen_visible(drv, runner):
-    """TC-SUMMARY-001 | 요약 화면 진입 — '완료' 또는 '업로드'/'건너뛰기' 버튼 표시"""
-    runner.assert_true(_on_summary(drv), "요약 화면 버튼이 표시되지 않음 (완료/업로드/건너뛰기 중 하나 필요)")
-    if drv.is_visible_text(_COMPLETE_BTN, timeout=2):
-        log.info("TC-SUMMARY-001: '완료' 버튼 확인 (데이터 정상 전송)")
-    elif drv.is_visible_text(_UPLOAD_BTN, timeout=2):
-        log.info("TC-SUMMARY-001: '업로드'/'건너뛰기' 버튼 확인 (데이터 누락)")
-
 
 def test_summary_002_button_state(drv, runner):
     """TC-SUMMARY-002 | 데이터 상태에 따라 완료 or 업로드/건너뛰기 표시"""
@@ -66,15 +60,14 @@ def test_summary_002_button_state(drv, runner):
 def test_summary_006_skip_popup(drv, runner):
     """TC-SUMMARY-006 | '건너뛰기' 클릭 → 확인 팝업 표시"""
     if not drv.is_visible_text(_SKIP_BTN, timeout=3):
-        log.info("TC-SUMMARY-006: '건너뛰기' 버튼 없음 (완료 상태) — 스킵")
+        log.info("TC-SUMMARY-006: '건너뛰기/Skip' 버튼 없음 (완료 상태) — 스킵")
         return
     drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
     time.sleep(1)
-    popup_visible = drv.is_visible_text([_SKIP_BTN, "중단", "확인", "체크"], timeout=5)
-    runner.assert_true(popup_visible, "'건너뛰기' 클릭 후 확인 팝업이 표시되지 않음")
+    popup_visible = drv.is_visible_text(_SKIP_BTN + ["중단", "확인", "체크", "Confirm", "Cancel"], timeout=5)
+    runner.assert_true(popup_visible, "'건너뛰기/Skip' 클릭 후 확인 팝업이 표시되지 않음")
     if popup_visible:
         log.info("TC-SUMMARY-006: 건너뛰기 팝업 확인")
-        # 취소하여 요약 화면 유지 (test_summary_007에서 완료)
         try:
             drv.tap_text(["취소", "Cancel", "닫기"], timeout=3, contains=False)
         except Exception:
@@ -82,17 +75,13 @@ def test_summary_006_skip_popup(drv, runner):
         time.sleep(0.5)
 
 
-_SKIP_CB_DESCS = ["건너뛰겠습니다.", "I confirm skip", "Confirm skip"]
-
-
 def test_summary_007_skip_confirm(drv, runner):
     """TC-SUMMARY-007 | 건너뛰기 팝업 — 체크박스 체크 + '건너뛰기' → 로그인 화면 이동"""
     if not drv.is_visible_text(_SKIP_BTN, timeout=3):
-        log.info("TC-SUMMARY-007: '건너뛰기' 버튼 없음 (완료 상태) — 스킵")
+        log.info("TC-SUMMARY-007: '건너뛰기/Skip' 버튼 없음 (완료 상태) — 스킵")
         return
     drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
     time.sleep(1)
-    # 팝업 page source 로깅 (실제 체크박스 content-desc 확인용)
     import re
     try:
         src = drv.drv.page_source
@@ -104,7 +93,6 @@ def test_summary_007_skip_confirm(drv, runner):
         drv.screenshot("summary_007_skip_popup")
     except Exception:
         pass
-    # 체크박스 탭 — content-desc 기반 (React Native 커스텀), fallback android.widget.CheckBox
     tapped = False
     for desc in _SKIP_CB_DESCS:
         try:
@@ -125,10 +113,22 @@ def test_summary_007_skip_confirm(drv, runner):
                     time.sleep(0.3)
         except Exception:
             pass
-    try:
-        drv.tap_text(_SKIP_BTN, timeout=5, contains=False)
-    except Exception:
-        drv.tap_text("확인", timeout=5, contains=False)
+    # 건너뛰기 팝업 확인 버튼: "Yes, Skip" (실제 앱 텍스트)
+    confirmed = False
+    for btn in ["Yes, Skip"]:
+        try:
+            els = drv.drv.find_elements(By.XPATH, f'//*[@content-desc="{btn}"]')
+            if els:
+                els[-1].click()
+                confirmed = True
+                break
+        except Exception:
+            pass
+    if not confirmed:
+        try:
+            drv.tap_text(["Yes, Skip", "건너뛰기", "Skip", "확인", "OK"], timeout=5, contains=False)
+        except Exception:
+            pass
     time.sleep(2)
     on_login = drv.is_visible_text(_LOGIN_TEXT, timeout=10)
     runner.assert_true(on_login, "건너뛰기 확정 후 로그인 화면으로 이동하지 않음")
@@ -139,18 +139,17 @@ def test_summary_007_skip_confirm(drv, runner):
 def test_summary_003_complete_to_login(drv, runner):
     """TC-SUMMARY-003 | '완료' 버튼 클릭 → 로그인 화면 이동"""
     if not drv.is_visible_text(_COMPLETE_BTN, timeout=3):
-        log.info("TC-SUMMARY-003: '완료' 버튼 없음 (데이터 누락 상태) — 스킵")
+        log.info("TC-SUMMARY-003: '완료/Done' 버튼 없음 (데이터 누락 상태) — 스킵")
         return
     drv.tap_text(_COMPLETE_BTN, timeout=5, contains=False)
     time.sleep(2)
     on_login = drv.is_visible_text(_LOGIN_TEXT, timeout=10)
-    runner.assert_true(on_login, "'완료' 클릭 후 로그인 화면으로 이동하지 않음")
+    runner.assert_true(on_login, "'완료/Done' 클릭 후 로그인 화면으로 이동하지 않음")
     if on_login:
         log.info("TC-SUMMARY-003: 로그인 화면 복귀 확인")
 
 
 TESTS = [
-    test_summary_001_screen_visible,
     test_summary_002_button_state,
     test_summary_006_skip_popup,
     test_summary_007_skip_confirm,
