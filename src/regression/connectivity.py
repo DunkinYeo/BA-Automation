@@ -20,8 +20,28 @@ def _adb(drv, *args):
     subprocess.run(cmd, capture_output=True, timeout=10)
 
 
-def _bt_off(drv): _adb(drv, "shell", "cmd", "bluetooth_manager", "disable")
-def _bt_on(drv):  _adb(drv, "shell", "cmd", "bluetooth_manager", "enable")
+def _adb_base(drv) -> list:
+    udid = drv.cfg.get("udid", "")
+    return ["adb"] + (["-s", udid] if udid else [])
+
+
+def _bt_off(drv) -> bool:
+    """BT OFF — svc / cmd / Appium Settings broadcast 순서 (src/adb_bluetooth.py).
+    bluetooth_on=0 이 확인되면 True. Galaxy A32 (Android 11) 는 broadcast 만 동작."""
+    from src.adb_bluetooth import set_bluetooth
+    way, _ = set_bluetooth(_adb_base(drv), on=False)
+    if way is None:
+        log.warning("_bt_off: ADB로 BT OFF 불가 (svc, cmd, Appium Settings 모두 실패)")
+        return False
+    log.info("_bt_off: BT OFF via %s", way)
+    return True
+
+
+def _bt_on(drv):
+    from src.adb_bluetooth import set_bluetooth
+    way, _ = set_bluetooth(_adb_base(drv), on=True, wait_sec=10)
+    if way is None:
+        log.warning("_bt_on: ADB로 BT ON 실패")
 def _wifi_off(drv): _adb(drv, "shell", "svc", "wifi", "disable")
 def _wifi_on(drv):  _adb(drv, "shell", "svc", "wifi", "enable")
 
@@ -69,7 +89,9 @@ def test_conn_001_bt_off_popup(drv, runner):
     """TC-CONN-001 | BT OFF → 블루투스 에러 팝업 표시 (20s 이내)"""
     if not _on_exam_screen(drv):
         runner.skip("검사 화면 아님")
-    _bt_off(drv)
+    if not _bt_off(drv):
+        _bt_on(drv)
+        runner.skip("ADB로 BT OFF 불가 — 이 기기에서 BT 토글 미지원")
     try:
         ok, elapsed = _poll_until(drv, ["블루투스", "Bluetooth", "연결이 끊어", "연결 끊김"], appear=True, timeout=20)
         if ok:
@@ -88,7 +110,9 @@ def test_conn_002_bt_recovery(drv, runner):
     """TC-CONN-002 | BT OFF → ON → 검사 화면 복구 (90s 이내)"""
     if not _on_exam_screen(drv):
         runner.skip("검사 화면 아님")
-    _bt_off(drv)
+    if not _bt_off(drv):
+        _bt_on(drv)
+        runner.skip("ADB로 BT OFF 불가 — 이 기기에서 BT 토글 미지원")
     time.sleep(5)
     _bt_on(drv)
     ok, elapsed = _poll_until(drv, _EXAM_TEXT + _RUNNING_TEXT, appear=True, timeout=90)
